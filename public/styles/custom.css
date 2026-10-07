@@ -1,0 +1,82 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Serif+Bengali:wght@100;200;300;400;500;600;700;800;900&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Tiro+Bangla:ital@0;1&display=swap");
+
+@font-face {
+  font-family: "Noirrit";
+  src: url("/fonts/Li-Ador-Noirrit-ExtraLight.ttf") format("truetype"),
+    url("/fonts/Li-Ador-Noirrit-ExtraLight-Italic.ttf") format("truetype"),
+    url("/fonts/Li-Ador-Noirrit-Light.ttf") format("truetype"),
+    url("/fonts/Li-Ador-Noirrit-Light-Italic.ttf") format("truetype"),
+    url("/fonts/Li-Ador-Noirrit-Regular.ttf") format("truetype"),
+    url("/fonts/Li-Ador-Noirrit-Italic.ttf") format("truetype"),
+    url("/fonts/Li-Ador-Noirrit-SemiBold.ttf") format("truetype"),
+    url("/fonts/Li-Ador-Noirrit-SemiBold-Italic.ttf") format("truetype"),
+    url("/fonts/Li-Ador-Noirrit-Bold.ttf") format("truetype"),
+    url("/fonts/Li-Ador-Noirrit-Bold-Italic.ttf") format("truetype");
+}
+
+.noirrit {
+  font-family: "Noirrit" !important;
+}
+
+* {
+  font-family: "Roboto", arial;
+}
+
+figure img {
+  position: static !important;
+  margin: 10px 0 !important;
+}
+
+/* Toast Message */
+.toast-message {
+  position: fixed;
+  top: 80px;
+  left: 0;
+  right: 0;
+  margin: auto;
+  width: fit-content;
+  max-width: 500px;
+  padding: 14px 28px;
+  border-radius: 4px;
+  box-shadow: 0px 0px 5px 0px #00000050;
+  z-index: 99999999999999999999999999999999999999999 !important;
+  overflow: hidden;
+}
+
+.toast-message .line {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 4px;
+  background: #ddd;
+  width: 100%;
+  animation: toastLine 4.35s linear; /* Use the animation, change the duration as needed */
+}
+
+@keyframes toastLine {
+  0% {
+    width: 100%;
+  }
+  100% {
+    width: 0%;
+  }
+}
+
+.toast-message.success {
+  background: #166db4;
+  border: 2px solid #166db4;
+  border-radius: 4px;
+  color: white;
+}
+
+.toast-message.error {
+  background: #dc2626;
+  color: white;
+}
+
+/* sun editor */
+input.se-input-form._se_image_file,
+button.se-btn.se-dialog-files-edge-button.se-file-remove {
+  display: none !important;
+}
