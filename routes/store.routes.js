@@ -9,6 +9,7 @@ const {
   updateStore,
   deleteStore,
   getStoreStats,
+  getPublicStores,
 } = require("../controller/storeManagement.controller");
 const verifyJWT = require("../middleware/verifyJWT");
 
@@ -26,5 +27,7 @@ router.get("/get-store/:id", verifyJWT, getStoreById);
 router.put("/update-store/:id", verifyJWT, updateStore);
 router.put("/toggle-store-status/:id", verifyJWT, toggleStoreStatus);
 router.delete("/delete-store/:id", verifyJWT, deleteStore);
+
+router.get("/public/stores", getPublicStores);
 
 module.exports = router;

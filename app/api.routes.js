@@ -9,6 +9,7 @@ const manualPaymentRoutes = require("../routes/manualPayment.routes");
 const subscriptionRoutes = require("../routes/subscription.routes");
 const storeRoutes = require("../routes/store.routes");
 const categoryRoutes = require("../routes/store-owner/category.routes");
+const productRoutes = require("../routes/store-owner/product.routes");
 
 const router = require("express").Router();
 
@@ -30,6 +31,12 @@ router.use("/subscription", subscriptionRoutes);
 router.use("/store", storeRoutes);
 
 router.use("/category", categoryRoutes);
+
+router.use("/product", productRoutes);
+
+
+
+
 
 
 

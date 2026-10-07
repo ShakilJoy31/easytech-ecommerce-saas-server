@@ -419,6 +419,78 @@ const getCategoryOptions = async (req, res, next) => {
   }
 };
 
+
+// =========================================================================
+//! GET PUBLIC CATEGORIES (across all active stores, deduped by title)
+// =========================================================================
+const getPublicCategories = async (req, res, next) => {
+  try {
+
+    const activeStores = await Store.findAll({
+      where: { status: "ACTIVE" },
+      attributes: ["id"],
+    });
+    const activeStoreIds = activeStores.map((s) => s.id);
+
+    if (activeStoreIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "No categories found!",
+        data: [],
+      });
+    }
+
+    const categories = await Category.findAll({
+      where: {
+        storeId: { [Op.in]: activeStoreIds },
+        isActive: true,
+      },
+      order: [
+        ["displayOrder", "ASC"],
+        ["title", "ASC"],
+      ],
+    });
+
+    // Dedupe by slug — keep first occurrence, sum product counts
+    const seen = new Map();
+    for (const cat of categories) {
+      const key = cat.slug;
+      if (!seen.has(key)) {
+        const productCount = await Product.count({
+          where: {
+            categoryId: cat.id,
+            storeId: { [Op.in]: activeStoreIds },
+            isActive: true,
+          },
+        });
+        seen.set(key, {
+          id: cat.id,
+          title: cat.title,
+          slug: cat.slug,
+          image: cat.image,
+          description: cat.description,
+          productCount,
+        });
+      }
+    }
+
+    const unique = Array.from(seen.values()).filter(
+      (c) => c.productCount > 0
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Public categories retrieved successfully!",
+      data: unique,
+    });
+  } catch (error) {
+    console.error("Error getting public categories:", error);
+    next(error);
+  }
+};
+
+
+
 module.exports = {
   createCategory,
   getAllCategories,
@@ -428,4 +500,5 @@ module.exports = {
   toggleCategoryStatus,
   getCategoryStats,
   getCategoryOptions,
+  getPublicCategories
 };

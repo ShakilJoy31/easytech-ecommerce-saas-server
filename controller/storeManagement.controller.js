@@ -4,6 +4,7 @@ const Store = require("../models/store.model");
 const User = require("../models/user.model");
 const Package = require("../models/package.model");
 const Subscription = require("../models/subscription.model");
+const Product = require("../models/store-owner/product.model");
 
 /* =========================================================================
    Helpers
@@ -432,6 +433,92 @@ const getStoreStats = async (req, res, next) => {
   }
 };
 
+
+
+
+
+
+
+
+
+// =========================================================================
+//! GET PUBLIC STORES (no auth — for home page)
+// =========================================================================
+const getPublicStores = async (req, res, next) => {
+  try {
+    const {
+      page = 1,
+      limit = 50,
+      search = "",
+      district = "",
+    } = req.query;
+
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+    const offset = (pageNumber - 1) * limitNumber;
+
+    const whereClause = { status: "ACTIVE" };
+
+    if (search) {
+      whereClause[Op.or] = [
+        { name: { [Op.like]: `%${search}%` } },
+        { slug: { [Op.like]: `%${search}%` } },
+      ];
+    }
+
+    if (district) {
+      whereClause.district = { [Op.like]: `%${district}%` };
+    }
+
+    const { count, rows: stores } = await Store.findAndCountAll({
+      where: whereClause,
+      limit: limitNumber,
+      offset,
+      order: [["createdAt", "DESC"]],
+      attributes: [
+        "id",
+        "storeCode",
+        "name",
+        "slug",
+        "tagline",
+        "logo",
+        "banner",
+        "district",
+        "primaryColor",
+        "secondaryColor",
+      ],
+    });
+
+
+    const enriched = await Promise.all(
+      stores.map(async (s) => {
+        const data = s.toJSON();
+        const productCount = await Product.count({
+          where: { storeId: s.id, isActive: true },
+        });
+        return { ...data, productCount };
+      })
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Public stores retrieved successfully!",
+      data: enriched,
+      pagination: {
+        totalItems: count,
+        totalPages: Math.ceil(count / limitNumber),
+        currentPage: pageNumber,
+        itemsPerPage: limitNumber,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting public stores:", error);
+    next(error);
+  }
+};
+
+
+
 module.exports = {
   getAllStores,
   getStoreById,
@@ -440,4 +527,5 @@ module.exports = {
   updateStore,
   deleteStore,
   getStoreStats,
+  getPublicStores
 };

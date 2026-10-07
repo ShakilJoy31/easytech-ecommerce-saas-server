@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const verifyStoreOwnerJWT = require("../../middleware/verifyStoreOwnerJWT");
-const { createCategory, getAllCategories, getCategoryStats, getCategoryOptions, getCategoryById, updateCategory, toggleCategoryStatus, deleteCategory } = require("../../controller/store-owner/category.controller");
+const { createCategory, getAllCategories, getCategoryStats, getCategoryOptions, getCategoryById, updateCategory, toggleCategoryStatus, deleteCategory, getPublicCategories } = require("../../controller/store-owner/category.controller");
 
 /* =========================================================================
    ALL ROUTES REQUIRE STORE OWNER JWT
@@ -17,5 +17,7 @@ router.get("/get-category/:id", verifyStoreOwnerJWT, getCategoryById);
 router.put("/update-category/:id", verifyStoreOwnerJWT, updateCategory);
 router.put("/toggle-category-status/:id", verifyStoreOwnerJWT, toggleCategoryStatus);
 router.delete("/delete-category/:id", verifyStoreOwnerJWT, deleteCategory);
+
+router.get("/public/categories", getPublicCategories);
 
 module.exports = router;
