@@ -5,6 +5,9 @@ const Store = require("../models/store.model");
 const Package = require("../models/package.model");
 const PaymentChannel = require("../models/paymentChannel.model");
 const sequelize = require("../database/connection");
+const Subscription = require("../models/subscription.model");
+const { sendSMSHelper } = require("../utils/helper/sendSMS");
+const User = require("../models/user.model");
 
 /* =========================================================================
    Helpers
@@ -402,6 +405,12 @@ const verifyManualPayment = async (req, res, next) => {
       });
     }
 
+    /* ---------- Fetch the store owner (for SMS) ---------- */
+    const owner = await User.findOne({
+      where: { id: store.ownerId },
+      transaction,
+    });
+
     /* ---------- Compute subscription window ---------- */
     const startAt = new Date();
     const endAt = new Date();
@@ -429,8 +438,6 @@ const verifyManualPayment = async (req, res, next) => {
       { transaction }
     );
 
-    /* ---------- Create subscription record ---------- */
-    const Subscription = require("../models/subscription.model");
     await Subscription.create(
       {
         storeId: store.id,
@@ -451,16 +458,85 @@ const verifyManualPayment = async (req, res, next) => {
 
     await transaction.commit();
 
-    /* ---------- Post-commit: reload for response ---------- */
+    /* =========================================================
+       POST-COMMIT WORK
+       (Failures here do NOT roll back the payment — it's already done)
+    ========================================================= */
+
+    /* ---------- Reload for response ---------- */
     const updatedPayment = await ManualPayment.findOne({ where: { id } });
     const updatedStore = await Store.findOne({ where: { id: store.id } });
 
+    /* ---------- Send SMS to store owner ---------- */
+    let smsResult = null;
+
+    if (owner && owner.phone) {
+      const smsConfig = {
+        apiKey: "R8000131699b3d6010b512.12179188",
+        senderId: "SRS TECH",
+        baseUrl: "https://msg.mram.com.bd/smsapi",
+        type: "text",
+      };
+
+      // Login URL — where the store owner signs in
+      const loginURL = `${
+        process.env.CLIENT_URL || "http://localhost:3000"
+      }/login`;
+
+      const smsMessage =
+        `Congratulations, ${owner.name}!\n` +
+        `Your store "${store.name}" has been ACTIVATED.\n\n` +
+        `Login Details:\n` +
+        `Email: ${owner.email}\n` +
+        `Password: ${owner.password}\n` + 
+        `Login here:\n${loginURL}\n\n` +
+        `Thank you!\n` +
+        `Team Storely\n\n` +
+        `System Design & Developed by\n` +
+        `EASYTECHSOLUTIONS https://easytechsolutions.xyz`;
+
+      try {
+        smsResult = await sendSMSHelper(
+          owner.phone,
+          smsMessage,
+          smsConfig.apiKey,
+          smsConfig.senderId,
+          smsConfig.type,
+          smsConfig.baseUrl
+        );
+
+        if (!smsResult.success) {
+          console.error("SMS sending failed:", smsResult.message);
+        }
+      } catch (smsError) {
+        console.error("SMS helper threw:", smsError);
+        smsResult = {
+          success: false,
+          message: smsError.message || "SMS send failed",
+        };
+      }
+    } else {
+      console.warn(
+        "Skipping SMS: owner or owner.phone missing for store",
+        store.id
+      );
+    }
+
+    /* ---------- Respond ---------- */
     return res.status(200).json({
       success: true,
       message: "Payment verified successfully! Store is now active.",
       data: {
         payment: updatedPayment,
         store: updatedStore,
+        smsSent: smsResult ? smsResult.success : false,
+        smsDetails: smsResult
+          ? {
+              success: smsResult.success,
+              message: smsResult.message,
+              messageId: smsResult.messageId,
+            }
+          : null,
       },
     });
   } catch (error) {
@@ -475,6 +551,9 @@ const verifyManualPayment = async (req, res, next) => {
     next(error);
   }
 };
+
+
+
 
 // =========================================================================
 //! REJECT MANUAL PAYMENT

@@ -10,6 +10,7 @@ const subscriptionRoutes = require("../routes/subscription.routes");
 const storeRoutes = require("../routes/store.routes");
 const categoryRoutes = require("../routes/store-owner/category.routes");
 const productRoutes = require("../routes/store-owner/product.routes");
+const orderRoutes = require("../routes/order.routes");
 
 const router = require("express").Router();
 
@@ -33,6 +34,8 @@ router.use("/store", storeRoutes);
 router.use("/category", categoryRoutes);
 
 router.use("/product", productRoutes);
+
+router.use("/order", orderRoutes);
 
 
 
