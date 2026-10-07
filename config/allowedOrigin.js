@@ -10,10 +10,10 @@ const allowedOrigins = [
 
 
 
-  "https://moody.linuxeon.com",
-  "http://moody.linuxeon.com",
-  "https://www.moody.linuxeon.com",
-  "http://www.moody.linuxeon.com",
+  "https://shakil-storely.luxuryloverpro.com",
+  "http://shakil-storely.luxuryloverpro.com",
+  "https://www.shakil-storely.luxuryloverpro.com",
+  "http://www.shakil-storely.luxuryloverpro.com",
 ];
 
 module.exports = allowedOrigins;
