@@ -18,11 +18,27 @@ const generateSlug = (title) => {
     .slice(0, 80);
 };
 
-//! Generate a human-readable product code
+//! Generate a unique product code with retry-safe numbering.
+//! Base number comes from highest existing product, not count(),
+//! to avoid reuse when products are deleted.
 const generateProductCode = async () => {
   const year = new Date().getFullYear();
-  const count = await Product.count();
-  return `PRD-${year}-${String(count + 1).padStart(5, "0")}`;
+  const prefix = `PRD-${year}-`;
+
+  // Find the highest existing product number for this year
+  const last = await Product.findOne({
+    where: { productCode: { [Op.like]: `${prefix}%` } },
+    order: [["productCode", "DESC"]],
+    attributes: ["productCode"],
+  });
+
+  let nextNumber = 1;
+  if (last?.productCode) {
+    const match = last.productCode.match(/(\d+)$/);
+    if (match) nextNumber = parseInt(match[1], 10) + 1;
+  }
+
+  return `${prefix}${String(nextNumber).padStart(5, "0")}`;
 };
 
 //! Normalize array fields (JSON column may return string on some setups)
@@ -156,50 +172,89 @@ const createProduct = async (req, res, next) => {
       counter++;
     }
 
-    /* ---------- Product code ---------- */
-    const productCode = await generateProductCode();
-
     /* ---------- Normalize arrays ---------- */
     const imagesArr = normalizeArray(images);
     const tagsArr = normalizeArray(tags);
 
-    /* ---------- Create ---------- */
-    const product = await Product.create({
-      productCode,
-      title: title.trim(),
-      slug,
-      description: description || null,
-      shortDescription: shortDescription || null,
+    /* ---------- Create with retry on unique collision ---------- */
+    const MAX_RETRIES = 5;
+    let product = null;
+    let lastError = null;
 
-      price: priceNum,
-      compareAtPrice:
-        compareAtPrice !== undefined && compareAtPrice !== "" && compareAtPrice !== null
-          ? parseFloat(compareAtPrice)
-          : null,
-      costPrice:
-        costPrice !== undefined && costPrice !== "" && costPrice !== null
-          ? parseFloat(costPrice)
-          : null,
-      currency,
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const productCode = await generateProductCode();
 
-      images: imagesArr,
-      thumbnail: thumbnail || imagesArr[0] || null,
+        product = await Product.create({
+          productCode,
+          title: title.trim(),
+          slug,
+          description: description || null,
+          shortDescription: shortDescription || null,
 
-      stock: parseInt(stock, 10) || 0,
-      sku: sku || null,
-      trackStock: Boolean(trackStock),
+          price: priceNum,
+          compareAtPrice:
+            compareAtPrice !== undefined &&
+            compareAtPrice !== "" &&
+            compareAtPrice !== null
+              ? parseFloat(compareAtPrice)
+              : null,
+          costPrice:
+            costPrice !== undefined &&
+            costPrice !== "" &&
+            costPrice !== null
+              ? parseFloat(costPrice)
+              : null,
+          currency,
 
-      categoryId: validCategoryId,
-      storeId,
+          images: imagesArr,
+          thumbnail: thumbnail || imagesArr[0] || null,
 
-      tags: tagsArr,
+          stock: parseInt(stock, 10) || 0,
+          sku: sku || null,
+          trackStock: Boolean(trackStock),
 
-      isFeatured: Boolean(isFeatured),
-      isActive: Boolean(isActive),
-      displayOrder: parseInt(displayOrder, 10) || 0,
+          categoryId: validCategoryId,
+          storeId,
 
-      createdBy: userId,
-    });
+          tags: tagsArr,
+
+          isFeatured: Boolean(isFeatured),
+          isActive: Boolean(isActive),
+          displayOrder: parseInt(displayOrder, 10) || 0,
+
+          createdBy: userId,
+        });
+
+        // Success — break out of retry loop
+        break;
+      } catch (err) {
+        // Only retry on unique constraint violation for productCode
+        if (
+          err.name === "SequelizeUniqueConstraintError" &&
+          err.fields &&
+          err.fields.productCode
+        ) {
+          lastError = err;
+          // Wait a small random time to reduce collision with concurrent requests
+          await new Promise((r) => setTimeout(r, 10 + Math.random() * 40));
+          continue;
+        }
+        // Any other error → throw immediately
+        throw err;
+      }
+    }
+
+    if (!product) {
+      console.error(
+        "Failed to generate unique product code after retries:",
+        lastError
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Could not generate a unique product code. Please try again.",
+      });
+    }
 
     /* ---------- Fetch category for response ---------- */
     let cat = null;
@@ -279,7 +334,9 @@ const getAllProducts = async (req, res, next) => {
     });
 
     /* ---------- Attach categories separately ---------- */
-    const categoryIds = [...new Set(products.map((p) => p.categoryId).filter(Boolean))];
+    const categoryIds = [
+      ...new Set(products.map((p) => p.categoryId).filter(Boolean)),
+    ];
     const categories = categoryIds.length
       ? await Category.findAll({ where: { id: categoryIds } })
       : [];
@@ -493,7 +550,9 @@ const toggleProductStatus = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      message: `Product ${newStatus ? "activated" : "deactivated"} successfully!`,
+      message: `Product ${
+        newStatus ? "activated" : "deactivated"
+      } successfully!`,
       data: transformProduct(updated),
     });
   } catch (error) {
@@ -595,17 +654,9 @@ const getProductStats = async (req, res, next) => {
   }
 };
 
-
-
-
-
-
-
-
-
-// =========================================================================
-//! GET PUBLIC PRODUCTS (across all active stores)
-// =========================================================================
+/* =========================================================================
+   GET PUBLIC PRODUCTS (across all active stores)
+========================================================================= */
 const getPublicProducts = async (req, res, next) => {
   try {
     const {
@@ -696,7 +747,9 @@ const getPublicProducts = async (req, res, next) => {
     });
 
     /* ---------- Enrich with category + store ---------- */
-    const categoryIds = [...new Set(products.map((p) => p.categoryId).filter(Boolean))];
+    const categoryIds = [
+      ...new Set(products.map((p) => p.categoryId).filter(Boolean)),
+    ];
     const storeIds = [...new Set(products.map((p) => p.storeId).filter(Boolean))];
 
     const categories = categoryIds.length
@@ -748,10 +801,9 @@ const getPublicProducts = async (req, res, next) => {
   }
 };
 
-
-// =========================================================================
-//! GET PUBLIC PRODUCT BY ID (no auth — for product detail page)
-// =========================================================================
+/* =========================================================================
+   GET PUBLIC PRODUCT BY ID (no auth — for product detail page)
+========================================================================= */
 const getPublicProductById = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -815,10 +867,6 @@ const getPublicProductById = async (req, res, next) => {
   }
 };
 
-
-
-
-
 module.exports = {
   createProduct,
   getAllProducts,
@@ -829,5 +877,5 @@ module.exports = {
   deleteProduct,
   getProductStats,
   getPublicProducts,
-  getPublicProductById
+  getPublicProductById,
 };

@@ -10,10 +10,11 @@ const allowedOrigins = [
 
 
 
-  "https://shakil-storely.luxuryloverpro.com",
-  "http://shakil-storely.luxuryloverpro.com",
-  "https://www.shakil-storely.luxuryloverpro.com",
-  "http://www.shakil-storely.luxuryloverpro.com",
+  "https://shakil-storely-luxuryloverpro.newscell.org",
+  "http://shakil-storely-luxuryloverpro.newscell.org",
+  "https://www.shakil-storely-luxuryloverpro.newscell.org",
+  "http://www.shakil-storely-luxuryloverpro.newscell.org",
 ];
 
 module.exports = allowedOrigins;
+ 

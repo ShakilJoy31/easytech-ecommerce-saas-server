@@ -12,7 +12,7 @@ app.set("view engine", "ejs");
 app.get("/health", (_, res) => res.status(200).json({ message: "ok" }));
 // app.use(viewRoutes);
 app.get("/", (req, res) => {
-  res.send("Welcome to Taghyeer Chatting Server!");
+  res.send("Welcome to Storely Server! System design and developed by Easy-Tech-Solution.");
 });
 
 //! Server available or not.............
